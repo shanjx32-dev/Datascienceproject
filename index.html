@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify Data Analysis 2009–2025</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+–green: #1DB954;
+–green-glow: rgba(29,185,84,0.18);
+–gold: #F5A623;
+–bg: #0a0a0a;
+–surface: #111111;
+–border: #1e1e1e;
+–text: #e8e8e8;
+–muted: #666;
+}
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘DM Sans’, sans-serif;
+min-height: 100vh;
+overflow-x: hidden;
+}
+
+/* Noise texture overlay */
+body::before {
+content: ‘’;
+position: fixed;
+inset: 0;
+background-image: url(“data:image/svg+xml,%3Csvg viewBox=‘0 0 256 256’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cfilter id=‘noise’%3E%3CfeTurbulence type=‘fractalNoise’ baseFrequency=‘0.9’ numOctaves=‘4’ stitchTiles=‘stitch’/%3E%3C/filter%3E%3Crect width=‘100%25’ height=‘100%25’ filter=‘url(%23noise)’ opacity=‘0.035’/%3E%3C/svg%3E”);
+pointer-events: none;
+z-index: 0;
+opacity: 0.4;
+}
+
+.header {
+padding: 48px 60px 32px;
+display: flex;
+align-items: flex-end;
+justify-content: space-between;
+border-bottom: 1px solid var(–border);
+position: relative;
+}
+
+.header-left h1 {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: clamp(48px, 6vw, 80px);
+letter-spacing: 0.04em;
+line-height: 0.9;
+color: white;
+}
+
+.header-left h1 span {
+color: var(–green);
+}
+
+.header-left p {
+margin-top: 12px;
+color: var(–muted);
+font-size: 13px;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+font-weight: 300;
+}
+
+.stat-pair {
+display: flex;
+gap: 48px;
+text-align: right;
+}
+
+.stat-item .val {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 44px;
+color: var(–gold);
+line-height: 1;
+}
+
+.stat-item .lbl {
+font-size: 11px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.1em;
+margin-top: 4px;
+}
+
+/* NAV TABS */
+.nav {
+display: flex;
+padding: 0 60px;
+border-bottom: 1px solid var(–border);
+gap: 0;
+overflow-x: auto;
+scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar { display: none; }
+
+.nav-btn {
+padding: 18px 28px;
+background: none;
+border: none;
+color: var(–muted);
+font-family: ‘DM Sans’, sans-serif;
+font-size: 12px;
+font-weight: 500;
+letter-spacing: 0.12em;
+text-transform: uppercase;
+cursor: pointer;
+border-bottom: 2px solid transparent;
+margin-bottom: -1px;
+white-space: nowrap;
+transition: all 0.25s ease;
+}
+
+.nav-btn:hover { color: var(–text); }
+
+.nav-btn.active {
+color: var(–green);
+border-bottom-color: var(–green);
+}
+
+/* PANELS */
+.panel {
+display: none;
+padding: 48px 60px;
+animation: fadeIn 0.4s ease;
+}
+
+.panel.active { display: block; }
+
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(12px); }
+to   { opacity: 1; transform: translateY(0); }
+}
+
+.panel-header {
+margin-bottom: 32px;
+}
+
+.panel-header h2 {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 36px;
+letter-spacing: 0.06em;
+color: white;
+}
+
+.panel-header p {
+color: var(–muted);
+font-size: 13px;
+margin-top: 6px;
+font-weight: 300;
+max-width: 600px;
+line-height: 1.6;
+}
+
+.chart-wrap {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 4px;
+padding: 32px;
+position: relative;
+}
+
+.chart-wrap canvas {
+max-height: 420px;
+}
+
+/* INSIGHT CARDS */
+.insight-row {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+gap: 16px;
+margin-top: 24px;
+}
+
+.insight-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 4px;
+padding: 24px;
+position: relative;
+overflow: hidden;
+}
+
+.insight-card::before {
+content: ‘’;
+position: absolute;
+top: 0; left: 0; right: 0;
+height: 2px;
+background: var(–green);
+}
+
+.insight-card.gold::before { background: var(–gold); }
+
+.insight-card .number {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 42px;
+color: var(–green);
+line-height: 1;
+}
+
+.insight-card.gold .number { color: var(–gold); }
+
+.insight-card .label {
+font-size: 11px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.1em;
+margin-top: 4px;
+}
+
+.insight-card .desc {
+font-size: 13px;
+color: #999;
+margin-top: 12px;
+line-height: 1.5;
+font-weight: 300;
+}
+
+/* TWO COLUMN LAYOUT */
+.two-col {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 24px;
+}
+
+@media (max-width: 900px) {
+.two-col { grid-template-columns: 1fr; }
+.header { flex-direction: column; gap: 24px; align-items: flex-start; }
+.panel { padding: 32px 24px; }
+.nav { padding: 0 24px; }
+.header { padding: 32px 24px 24px; }
+.stat-pair { text-align: left; }
+}
+
+/* SCATTER specific */
+.scatter-note {
+font-size: 12px;
+color: var(–muted);
+margin-top: 16px;
+font-weight: 300;
+font-style: italic;
+}
+
+/* tooltip custom */
+.chartjs-tooltip {
+background: #1a1a1a !important;
+border: 1px solid var(–border) !important;
+}
+
+/* footer */
+.footer {
+padding: 24px 60px;
+border-top: 1px solid var(–border);
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 16px;
+}
+
+.footer p {
+font-size: 11px;
+color: var(–muted);
+letter-spacing: 0.06em;
+}
+
+.dot {
+width: 8px; height: 8px;
+border-radius: 50%;
+background: var(–green);
+display: inline-block;
+margin-right: 8px;
+animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.3; }
+}
+</style>
+
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <h1>SPOTIFY<br><span>DATA ANALYSIS</span></h1>
+    <p>Global Music Trends &nbsp;·&nbsp; 2009 – 2025 &nbsp;·&nbsp; 8,582 Tracks</p>
+  </div>
+  <div class="stat-pair">
+    <div class="stat-item">
+      <div class="val">8,582</div>
+      <div class="lbl">Tracks Analysed</div>
+    </div>
+    <div class="stat-item">
+      <div class="val">17</div>
+      <div class="lbl">Years of Data</div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPanel('trend')">Popularity Trend</button>
+  <button class="nav-btn" onclick="showPanel('genres')">Top Genres</button>
+  <button class="nav-btn" onclick="showPanel('artists')">Top Artists</button>
+  <button class="nav-btn" onclick="showPanel('scatter')">Duration vs Popularity</button>
+  <button class="nav-btn" onclick="showPanel('explicit')">Explicit vs Clean</button>
+  <button class="nav-btn" onclick="showPanel('volume')">Release Volume</button>
+  <button class="nav-btn" onclick="showPanel('genredur')">Genre Duration</button>
+</nav>
+
+<!-- PANEL 1: TREND -->
+
+<div class="panel active" id="panel-trend">
+  <div class="panel-header">
+    <h2>Average Track Popularity Over Time</h2>
+    <p>How has the average popularity of Spotify tracks changed from 2009 to 2025? Popularity is scored 0–100 based on recent streams and saves.</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-trend"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">54.1</div>
+      <div class="label">Peak Year — 2018</div>
+      <div class="desc">2018 saw the highest average popularity, coinciding with streaming becoming the dominant music format globally.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">49.2</div>
+      <div class="label">Lowest — 2009</div>
+      <div class="desc">Tracks from 2009 score lower today as they compete with fresher content in Spotify's recency-weighted algorithm.</div>
+    </div>
+    <div class="insight-card">
+      <div class="number">+5pt</div>
+      <div class="label">Overall Rise</div>
+      <div class="desc">Despite fluctuations, average popularity has climbed steadily over 17 years, reflecting growing user engagement.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 2: GENRES -->
+
+<div class="panel" id="panel-genres">
+  <div class="panel-header">
+    <h2>Top 10 Music Genres</h2>
+    <p>Which genres dominate the Spotify catalogue? Genres are derived from artist tags and reflect the diversity of styles on the platform.</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-genres"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">#1</div>
+      <div class="label">Pop — 881 tracks</div>
+      <div class="desc">Pop remains the undisputed king of Spotify, accounting for over 10% of all tracks in the dataset.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">3×</div>
+      <div class="label">Pop vs Hip Hop</div>
+      <div class="desc">Pop has nearly 3× more tracks than hip hop (#4), showing its dominance despite hip hop's cultural rise.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 3: ARTISTS -->
+
+<div class="panel" id="panel-artists">
+  <div class="panel-header">
+    <h2>Top 10 Artists by Followers</h2>
+    <p>The most-followed artists on Spotify in this dataset. Follower counts reflect cumulative fan bases built over years of streaming.</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-artists"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">145M</div>
+      <div class="label">Taylor Swift — #1</div>
+      <div class="desc">Taylor Swift leads all artists with 145.5M followers, boosted by her re-recording campaign and Eras Tour era.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">81M</div>
+      <div class="label">BTS — #10</div>
+      <div class="desc">BTS is the only non-Western act in the top 10, a testament to K-pop's global reach on streaming platforms.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 4: SCATTER -->
+
+<div class="panel" id="panel-scatter">
+  <div class="panel-header">
+    <h2>Does Song Length Affect Popularity?</h2>
+    <p>Each dot represents one track. Is there a sweet spot for track duration that correlates with higher popularity scores?</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-scatter"></canvas>
+    <p class="scatter-note">Sample of 500 tracks · Orange dashed line shows trend · Hover over dots to see track names</p>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">2–4</div>
+      <div class="label">Sweet Spot (minutes)</div>
+      <div class="desc">Tracks between 2–4 minutes show the highest density of popular songs, matching modern streaming attention spans.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">Weak</div>
+      <div class="label">Correlation</div>
+      <div class="desc">Duration alone has a weak relationship with popularity — content quality matters far more than length.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 5: EXPLICIT -->
+
+<div class="panel" id="panel-explicit">
+  <div class="panel-header">
+    <h2>Explicit vs Clean Tracks</h2>
+    <p>Do tracks with explicit content (profanity, adult themes) perform differently on Spotify compared to clean versions?</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-explicit"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">57.9</div>
+      <div class="label">Explicit avg. popularity</div>
+      <div class="desc">Explicit tracks score noticeably higher on average — likely because they dominate rap and hip hop, currently popular genres.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">+8pt</div>
+      <div class="label">Explicit advantage</div>
+      <div class="desc">An 8-point gap between explicit and clean tracks. Genre mix rather than content itself likely explains most of this difference.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 6: VOLUME -->
+
+<div class="panel" id="panel-volume">
+  <div class="panel-header">
+    <h2>Tracks Released Per Year</h2>
+    <p>How has music production volume on Spotify changed over time? The rise of independent artists and digital distribution has transformed output.</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-volume"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">765</div>
+      <div class="label">2025 — Most Tracks</div>
+      <div class="desc">2025 is already the highest-volume year in the dataset, reflecting the continued democratisation of music production.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">+387%</div>
+      <div class="label">Growth 2009→2025</div>
+      <div class="desc">From 157 tracks in 2009 to 765 in 2025 — nearly 5× more music being added to the platform every year.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 7: GENRE DURATION -->
+
+<div class="panel" id="panel-genredur">
+  <div class="panel-header">
+    <h2>Average Track Duration by Genre</h2>
+    <p>Do different genres tend toward longer or shorter songs? Here are the top 10 genres ranked by average track duration.</p>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-genredur"></canvas>
+  </div>
+  <div class="insight-row">
+    <div class="insight-card">
+      <div class="number">4.38</div>
+      <div class="label">R&B Pop — Longest</div>
+      <div class="desc">R&B pop tracks average over 4 minutes, reflecting the genre's tradition of extended vocal performances and production.</div>
+    </div>
+    <div class="insight-card gold">
+      <div class="number">3.40</div>
+      <div class="label">Latin Pop — Shortest</div>
+      <div class="desc">Latin pop keeps it tight at 3.4 minutes — matching the genre's dance-floor energy and radio-friendly formatting.</div>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <p><span class="dot"></span>Data source: Spotify Global Music Dataset 2009–2025 via Kaggle</p>
+  <p>Analysis by Data Science Project &nbsp;·&nbsp; WLSA Shanghai</p>
+</footer>
+
+<script>
+const GREEN = '#1DB954';
+const GOLD = '#F5A623';
+const MUTED = '#444';
+const TEXT = '#aaa';
+const BG = '#111111';
+
+const defaultFont = { family: 'DM Sans', size: 12 };
+Chart.defaults.font = defaultFont;
+Chart.defaults.color = TEXT;
+
+const gridOpts = {
+  color: 'rgba(255,255,255,0.04)',
+  drawBorder: false
+};
+
+const tooltipOpts = {
+  backgroundColor: '#1a1a1a',
+  borderColor: '#2a2a2a',
+  borderWidth: 1,
+  titleColor: '#fff',
+  bodyColor: TEXT,
+  padding: 12,
+  cornerRadius: 2,
+};
+
+// ── CHART 1: TREND ──
+new Chart(document.getElementById('chart-trend'), {
+  type: 'line',
+  data: {
+    labels: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
+    datasets: [{
+      label: 'Avg Popularity',
+      data: [49.22,51.1,49.71,51.56,49.99,53.01,53.38,50.97,51.11,54.07,53.76,50.64,52.59,50.88,52.22,53.7,51.78],
+      borderColor: GREEN,
+      backgroundColor: 'rgba(29,185,84,0.08)',
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointBackgroundColor: '#0a0a0a',
+      pointBorderColor: GREEN,
+      pointBorderWidth: 2,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts }
+    },
+    scales: {
+      x: { grid: gridOpts, ticks: { color: TEXT } },
+      y: {
+        grid: gridOpts,
+        ticks: { color: TEXT },
+        min: 44, max: 58,
+        title: { display: true, text: 'Popularity Score (0–100)', color: MUTED, font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── CHART 2: GENRES ──
+const genreColors = [GREEN,'#17A84A','#148A3D','#0f6e30',GOLD,'#E8572A','#C13584','#833AB4','#5851DB','#405DE6'];
+new Chart(document.getElementById('chart-genres'), {
+  type: 'bar',
+  data: {
+    labels: ['Pop','Country','Indie','Hip Hop','Folk','Soundtrack','Rap','Alt Pop','Soft Pop','Synthpop'],
+    datasets: [{
+      data: [881,604,362,353,326,326,255,228,210,176],
+      backgroundColor: genreColors,
+      borderWidth: 0,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts, callbacks: { label: ctx => ` ${ctx.raw} tracks` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: TEXT } },
+      y: {
+        grid: gridOpts,
+        ticks: { color: TEXT },
+        title: { display: true, text: 'Number of Tracks', color: MUTED, font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── CHART 3: ARTISTS ──
+const artistColors = ['#1DB954','#1EC957','#1AB54E','#17A045','#148B3C','#117633','#0e612a','#0b4c21','#083718','#05220f'];
+new Chart(document.getElementById('chart-artists'), {
+  type: 'bar',
+  data: {
+    labels: ['Taylor Swift','Ed Sheeran','Billie Eilish','The Weeknd','Ariana Grande','Eminem','Drake','Bad Bunny','Justin Bieber','BTS'],
+    datasets: [{
+      data: [145.5,122.8,118.8,113.0,107.4,104.6,103.1,102.6,85.1,81.2],
+      backgroundColor: artistColors,
+      borderWidth: 0,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts, callbacks: { label: ctx => ` ${ctx.raw}M followers` } }
+    },
+    scales: {
+      x: {
+        grid: gridOpts,
+        ticks: { color: TEXT, callback: v => v + 'M' },
+        title: { display: true, text: 'Followers (millions)', color: MUTED, font: { size: 11 } }
+      },
+      y: { grid: { display: false }, ticks: { color: TEXT } }
+    }
+  }
+});
+
+// ── CHART 4: SCATTER ──
+const scatterRaw = [{"track_duration_min":3.52,"track_popularity":75,"track_name":"Long Time - Intro"},{"track_duration_min":3.5,"track_popularity":62,"track_name":"Please Don't Go"},{"track_duration_min":1.45,"track_popularity":81,"track_name":"Evergreen"},{"track_duration_min":3.97,"track_popularity":31,"track_name":"Mean"},{"track_duration_min":4.38,"track_popularity":56,"track_name":"Blurred Lines"},{"track_duration_min":2.6,"track_popularity":55,"track_name":"DON'T WANNA SLEEP"},{"track_duration_min":3.5,"track_popularity":70,"track_name":"Home"},{"track_duration_min":4.05,"track_popularity":65,"track_name":"Dark Paradise"},{"track_duration_min":3.36,"track_popularity":67,"track_name":"Lie To Girls"},{"track_duration_min":3.91,"track_popularity":3,"track_name":"Never Be Like You"},{"track_duration_min":4.3,"track_popularity":60,"track_name":"Twenty Eight"},{"track_duration_min":3.6,"track_popularity":74,"track_name":"FINA"},{"track_duration_min":2.77,"track_popularity":62,"track_name":"."},{"track_duration_min":2.22,"track_popularity":35,"track_name":"The Reason"},{"track_duration_min":3.94,"track_popularity":47,"track_name":"Dream Walk"},{"track_duration_min":1.62,"track_popularity":5,"track_name":"Happy Mississippi"},{"track_duration_min":5.45,"track_popularity":46,"track_name":"The Long Run"},{"track_duration_min":1.88,"track_popularity":51,"track_name":"Around The World"},{"track_duration_min":3.31,"track_popularity":39,"track_name":"Shangri-La"},{"track_duration_min":2.55,"track_popularity":70,"track_name":"Club classics"},{"track_duration_min":3.78,"track_popularity":46,"track_name":"PAPARAZZI"},{"track_duration_min":3.1,"track_popularity":31,"track_name":"Lit"},{"track_duration_min":3.11,"track_popularity":70,"track_name":"Chunky"},{"track_duration_min":3.39,"track_popularity":77,"track_name":"Call It What You Want"},{"track_duration_min":4.02,"track_popularity":93,"track_name":"The Life of a Showgirl"},{"track_duration_min":1.77,"track_popularity":11,"track_name":"Hanna vs Marissa"},{"track_duration_min":4.79,"track_popularity":71,"track_name":"Jealous"},{"track_duration_min":3.85,"track_popularity":79,"track_name":"We Can't Stop"},{"track_duration_min":4.36,"track_popularity":62,"track_name":"Party Rock Anthem"},{"track_duration_min":3.4,"track_popularity":56,"track_name":"This Is How We Do"},{"track_duration_min":1.66,"track_popularity":54,"track_name":"wet dreams"},{"track_duration_min":3.68,"track_popularity":84,"track_name":"Lover"},{"track_duration_min":3.47,"track_popularity":65,"track_name":"I Could Be The One"},{"track_duration_min":3.53,"track_popularity":72,"track_name":"Animal"},{"track_duration_min":4.87,"track_popularity":85,"track_name":"No Role Modelz"},{"track_duration_min":3.7,"track_popularity":84,"track_name":"Gata Only"},{"track_duration_min":3.75,"track_popularity":64,"track_name":"Daylight"},{"track_duration_min":2.98,"track_popularity":69,"track_name":"Desire"},{"track_duration_min":3.59,"track_popularity":81,"track_name":"Popular"},{"track_duration_min":4.16,"track_popularity":74,"track_name":"The Prophecy"},{"track_duration_min":2.92,"track_popularity":17,"track_name":"Waste"},{"track_duration_min":2.97,"track_popularity":82,"track_name":"Me Porto Bonito"},{"track_duration_min":2.82,"track_popularity":86,"track_name":"From The Start"},{"track_duration_min":4.94,"track_popularity":76,"track_name":"Ain't It Fun"},{"track_duration_min":3.29,"track_popularity":69,"track_name":"Beautiful People"},{"track_duration_min":3.59,"track_popularity":67,"track_name":"Jackie Chan"},{"track_duration_min":4.68,"track_popularity":83,"track_name":"TV"},{"track_duration_min":5.43,"track_popularity":68,"track_name":"Suit & Tie"},{"track_duration_min":2.72,"track_popularity":70,"track_name":"Priceless"},{"track_duration_min":3.15,"track_popularity":61,"track_name":"Bed"},{"track_duration_min":3.03,"track_popularity":74,"track_name":"Finesse"},{"track_duration_min":4.0,"track_popularity":69,"track_name":"Sweater Weather"},{"track_duration_min":3.54,"track_popularity":78,"track_name":"Symphony"},{"track_duration_min":2.33,"track_popularity":68,"track_name":"Keep Driving"},{"track_duration_min":3.47,"track_popularity":95,"track_name":"Elizabeth Taylor"},{"track_duration_min":3.19,"track_popularity":81,"track_name":"Needed Me"},{"track_duration_min":4.95,"track_popularity":66,"track_name":"Without a Warning"},{"track_duration_min":2.64,"track_popularity":62,"track_name":"my hair"},{"track_duration_min":3.65,"track_popularity":62,"track_name":"Mother's Daughter"},{"track_duration_min":3.0,"track_popularity":72,"track_name":"Beautiful"},{"track_duration_min":3.77,"track_popularity":51,"track_name":"Post to Be"},{"track_duration_min":3.43,"track_popularity":63,"track_name":"Don't Wanna Go Home"},{"track_duration_min":3.22,"track_popularity":73,"track_name":"Unsteady"},{"track_duration_min":3.62,"track_popularity":75,"track_name":"Finesse Remix"},{"track_duration_min":2.63,"track_popularity":58,"track_name":"Myself"},{"track_duration_min":3.79,"track_popularity":78,"track_name":"Beauty And A Beat"},{"track_duration_min":4.04,"track_popularity":78,"track_name":"Where Have You Been"},{"track_duration_min":2.97,"track_popularity":79,"track_name":"SAD!"},{"track_duration_min":3.34,"track_popularity":67,"track_name":"Tonight Tonight"},{"track_duration_min":3.86,"track_popularity":64,"track_name":"Dance To This"},{"track_duration_min":4.16,"track_popularity":69,"track_name":"This Love"},{"track_duration_min":2.67,"track_popularity":39,"track_name":"Machine"},{"track_duration_min":3.83,"track_popularity":70,"track_name":"Disease"},{"track_duration_min":4.21,"track_popularity":65,"track_name":"Lane Boy"},{"track_duration_min":4.04,"track_popularity":89,"track_name":"12 to 12"},{"track_duration_min":3.35,"track_popularity":70,"track_name":"ZEN"},{"track_duration_min":2.79,"track_popularity":66,"track_name":"Compass"},{"track_duration_min":3.08,"track_popularity":64,"track_name":"gold rush"},{"track_duration_min":3.54,"track_popularity":53,"track_name":"chateau"},{"track_duration_min":3.03,"track_popularity":71,"track_name":"Starving"},{"track_duration_min":3.49,"track_popularity":68,"track_name":"Takeaway"},{"track_duration_min":3.15,"track_popularity":70,"track_name":"Not About Angels"},{"track_duration_min":3.66,"track_popularity":76,"track_name":"I Knew You Were Trouble"},{"track_duration_min":3.06,"track_popularity":76,"track_name":"Siren sounds"},{"track_duration_min":4.88,"track_popularity":70,"track_name":"The Tortured Poets Department"},{"track_duration_min":4.48,"track_popularity":67,"track_name":"New Divide"},{"track_duration_min":3.58,"track_popularity":71,"track_name":"yes, and?"},{"track_duration_min":3.16,"track_popularity":66,"track_name":"Sin Pijama"},{"track_duration_min":3.78,"track_popularity":77,"track_name":"Never Be the Same"},{"track_duration_min":3.06,"track_popularity":73,"track_name":"Mo Bamba"},{"track_duration_min":4.04,"track_popularity":39,"track_name":"There Is a Light"},{"track_duration_min":4.4,"track_popularity":71,"track_name":"Lust For Life"},{"track_duration_min":2.88,"track_popularity":69,"track_name":"Walk Em Down"},{"track_duration_min":2.76,"track_popularity":77,"track_name":"Snowman"},{"track_duration_min":3.74,"track_popularity":68,"track_name":"Cheap Thrills"},{"track_duration_min":4.0,"track_popularity":65,"track_name":"Headphones On"},{"track_duration_min":5.48,"track_popularity":34,"track_name":"All Too Well"},{"track_duration_min":2.66,"track_popularity":60,"track_name":"OK Not To Be OK"},{"track_duration_min":3.01,"track_popularity":74,"track_name":"Me Fui de Vacaciones"},{"track_duration_min":2.13,"track_popularity":67,"track_name":"I Love It"},{"track_duration_min":4.28,"track_popularity":77,"track_name":"Elastic Heart"},{"track_duration_min":3.93,"track_popularity":78,"track_name":"King For A Day"},{"track_duration_min":2.37,"track_popularity":90,"track_name":"Just Keep Watching"},{"track_duration_min":3.44,"track_popularity":78,"track_name":"Yonaguni"},{"track_duration_min":2.99,"track_popularity":65,"track_name":"Nancy Mulligan"},{"track_duration_min":4.16,"track_popularity":67,"track_name":"Turning Tables"},{"track_duration_min":2.25,"track_popularity":82,"track_name":"Moonlight"},{"track_duration_min":4.39,"track_popularity":88,"track_name":"Perfect"},{"track_duration_min":3.56,"track_popularity":66,"track_name":"OverHeated"},{"track_duration_min":3.22,"track_popularity":85,"track_name":"Go Go Juice"},{"track_duration_min":3.19,"track_popularity":93,"track_name":"Your Idol"},{"track_duration_min":3.51,"track_popularity":79,"track_name":"Nothing's New"},{"track_duration_min":2.33,"track_popularity":70,"track_name":"Talk 2 Me"},{"track_duration_min":2.36,"track_popularity":80,"track_name":"STAY"},{"track_duration_min":3.97,"track_popularity":77,"track_name":"Private Landing"},{"track_duration_min":3.25,"track_popularity":64,"track_name":"this is me trying"},{"track_duration_min":3.01,"track_popularity":79,"track_name":"Bored"},{"track_duration_min":3.9,"track_popularity":75,"track_name":"Pretty When You Cry"},{"track_duration_min":3.19,"track_popularity":65,"track_name":"Grapejuice"},{"track_duration_min":2.83,"track_popularity":69,"track_name":"teen romance"},{"track_duration_min":4.27,"track_popularity":70,"track_name":"People Help the People"},{"track_duration_min":3.98,"track_popularity":65,"track_name":"Boo'd Up"},{"track_duration_min":4.35,"track_popularity":75,"track_name":"Laugh Now Cry Later"},{"track_duration_min":3.99,"track_popularity":62,"track_name":"Garden Of Eden"},{"track_duration_min":6.15,"track_popularity":74,"track_name":"Haunted"},{"track_duration_min":2.36,"track_popularity":66,"track_name":"Good In Goodbye"},{"track_duration_min":4.38,"track_popularity":72,"track_name":"Praise Jah In The Moonlight"},{"track_duration_min":3.61,"track_popularity":76,"track_name":"Die On This Hill"},{"track_duration_min":3.61,"track_popularity":78,"track_name":"bloodline"},{"track_duration_min":3.31,"track_popularity":91,"track_name":"back to friends"},{"track_duration_min":2.87,"track_popularity":70,"track_name":"QLONA"},{"track_duration_min":4.59,"track_popularity":73,"track_name":"Time"},{"track_duration_min":3.9,"track_popularity":76,"track_name":"Pretty Boy"},{"track_duration_min":3.81,"track_popularity":70,"track_name":"Same Old Love"},{"track_duration_min":2.2,"track_popularity":71,"track_name":"Broke In A Minute"},{"track_duration_min":4.36,"track_popularity":85,"track_name":"august"},{"track_duration_min":3.07,"track_popularity":75,"track_name":"Handlebars"},{"track_duration_min":5.27,"track_popularity":77,"track_name":"Love Story"},{"track_duration_min":3.24,"track_popularity":53,"track_name":"IF NOT FOR YOU"},{"track_duration_min":3.06,"track_popularity":66,"track_name":"Heartbreak Anthem"},{"track_duration_min":4.07,"track_popularity":70,"track_name":"Haven't Met You Yet"},{"track_duration_min":3.48,"track_popularity":79,"track_name":"Train Wreck"},{"track_duration_min":3.72,"track_popularity":62,"track_name":"Never Really Over"},{"track_duration_min":3.09,"track_popularity":73,"track_name":"Harleys In Hawaii"},{"track_duration_min":3.64,"track_popularity":89,"track_name":"Good Luck, Babe!"},{"track_duration_min":1.42,"track_popularity":85,"track_name":"nuts"},{"track_duration_min":2.39,"track_popularity":83,"track_name":"run for the hills"},{"track_duration_min":2.75,"track_popularity":67,"track_name":"We're Good"},{"track_duration_min":3.88,"track_popularity":80,"track_name":"Only Love Can Hurt Like This"},{"track_duration_min":4.01,"track_popularity":85,"track_name":"NOKIA"},{"track_duration_min":3.6,"track_popularity":82,"track_name":"Still into You"},{"track_duration_min":3.38,"track_popularity":62,"track_name":"Holy Ground"},{"track_duration_min":4.86,"track_popularity":82,"track_name":"i love you"},{"track_duration_min":3.56,"track_popularity":66,"track_name":"Diamonds"},{"track_duration_min":3.47,"track_popularity":70,"track_name":"Hurts So Good"},{"track_duration_min":1.74,"track_popularity":76,"track_name":"Embrace It"},{"track_duration_min":1.92,"track_popularity":65,"track_name":"Hey, Mickey!"},{"track_duration_min":3.79,"track_popularity":56,"track_name":"Eraser"},{"track_duration_min":3.93,"track_popularity":32,"track_name":"Out Of The Woods"},{"track_duration_min":3.72,"track_popularity":72,"track_name":"Bodak Yellow"},{"track_duration_min":3.96,"track_popularity":83,"track_name":"Borderline"},{"track_duration_min":3.05,"track_popularity":72,"track_name":"Only Human"},{"track_duration_min":3.07,"track_popularity":86,"track_name":"Pink + White"},{"track_duration_min":3.43,"track_popularity":77,"track_name":"This Could Be Us"},{"track_duration_min":3.17,"track_popularity":65,"track_name":"Me Gusta"},{"track_duration_min":2.96,"track_popularity":75,"track_name":"Safe"},{"track_duration_min":3.14,"track_popularity":64,"track_name":"I Don't Do Drugs"},{"track_duration_min":4.1,"track_popularity":74,"track_name":"jar of hearts"},{"track_duration_min":2.56,"track_popularity":78,"track_name":"Pure Cocaine"},{"track_duration_min":3.35,"track_popularity":74,"track_name":"Shotgun"},{"track_duration_min":3.33,"track_popularity":76,"track_name":"Best Song Ever"},{"track_duration_min":3.1,"track_popularity":79,"track_name":"Please Please Please"},{"track_duration_min":2.94,"track_popularity":74,"track_name":"bitches broken hearts"},{"track_duration_min":4.0,"track_popularity":78,"track_name":"Falling"},{"track_duration_min":3.92,"track_popularity":72,"track_name":"In The Night"},{"track_duration_min":3.45,"track_popularity":66,"track_name":"Over"},{"track_duration_min":4.41,"track_popularity":67,"track_name":"Deja Vu"},{"track_duration_min":3.32,"track_popularity":81,"track_name":"Bang Bang"},{"track_duration_min":3.26,"track_popularity":77,"track_name":"Drive By"},{"track_duration_min":3.28,"track_popularity":71,"track_name":"BELLAKEO"},{"track_duration_min":3.87,"track_popularity":80,"track_name":"Casual"},{"track_duration_min":4.38,"track_popularity":71,"track_name":"So Long, London"},{"track_duration_min":2.88,"track_popularity":70,"track_name":"Truth Hurts"},{"track_duration_min":2.64,"track_popularity":67,"track_name":"Special"},{"track_duration_min":2.87,"track_popularity":67,"track_name":"Lights Up"},{"track_duration_min":3.78,"track_popularity":76,"track_name":"Runaway"},{"track_duration_min":3.59,"track_popularity":67,"track_name":"XO"},{"track_duration_min":4.24,"track_popularity":72,"track_name":"The Worst"},{"track_duration_min":2.18,"track_popularity":71,"track_name":"Mine"},{"track_duration_min":3.51,"track_popularity":74,"track_name":"Starships"},{"track_duration_min":3.13,"track_popularity":68,"track_name":"Peso Pluma Session"},{"track_duration_min":3.29,"track_popularity":49,"track_name":"Flowers"},{"track_duration_min":3.44,"track_popularity":78,"track_name":"Yonaguni"},{"track_duration_min":3.31,"track_popularity":80,"track_name":"Quevedo Session"},{"track_duration_min":2.72,"track_popularity":79,"track_name":"LET THE WORLD BURN"},{"track_duration_min":3.3,"track_popularity":72,"track_name":"Always Love"},{"track_duration_min":2.89,"track_popularity":76,"track_name":"34+35"},{"track_duration_min":3.18,"track_popularity":54,"track_name":"HUSH"},{"track_duration_min":3.09,"track_popularity":76,"track_name":"I Feel Like I'm Drowning"},{"track_duration_min":3.05,"track_popularity":72,"track_name":"Fame is a Gun"},{"track_duration_min":3.77,"track_popularity":76,"track_name":"Birthday Sex"},{"track_duration_min":2.71,"track_popularity":59,"track_name":"Blue Tint"},{"track_duration_min":2.81,"track_popularity":72,"track_name":"all the good girls go to hell"},{"track_duration_min":3.27,"track_popularity":92,"track_name":"WHERE IS MY HUSBAND!"},{"track_duration_min":4.09,"track_popularity":78,"track_name":"Am I Wrong"},{"track_duration_min":2.84,"track_popularity":79,"track_name":"Galway Girl"},{"track_duration_min":2.64,"track_popularity":67,"track_name":"Clouds"},{"track_duration_min":3.15,"track_popularity":75,"track_name":"Prayer in C"},{"track_duration_min":3.29,"track_popularity":69,"track_name":"Beautiful People"},{"track_duration_min":2.95,"track_popularity":84,"track_name":"luther"},{"track_duration_min":3.52,"track_popularity":93,"track_name":"CANCELLED!"}];
+
+new Chart(document.getElementById('chart-scatter'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Track',
+        data: scatterRaw.map(d => ({ x: d.track_duration_min, y: d.track_popularity, name: d.track_name })),
+        backgroundColor: 'rgba(29,185,84,0.35)',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBorderWidth: 0
+      },
+      {
+        label: 'Trend',
+        data: [
+          { x: 1, y: 51.8 }, { x: 2, y: 52.8 }, { x: 3, y: 53.5 },
+          { x: 4, y: 53.9 }, { x: 5, y: 54.0 }, { x: 6, y: 53.8 }, { x: 7, y: 53.3 }, { x: 8, y: 52.5 }
+        ],
+        type: 'line',
+        borderColor: GOLD,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0.4
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...tooltipOpts,
+        callbacks: {
+          label: ctx => ctx.dataset.label === 'Track'
+            ? [` "${ctx.raw.name}"`, ` Duration: ${ctx.raw.x} min  ·  Popularity: ${ctx.raw.y}`]
+            : ` Trend line`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: gridOpts,
+        ticks: { color: TEXT, callback: v => v + ' min' },
+        title: { display: true, text: 'Duration (minutes)', color: MUTED, font: { size: 11 } },
+        min: 0.5, max: 8
+      },
+      y: {
+        grid: gridOpts,
+        ticks: { color: TEXT },
+        title: { display: true, text: 'Popularity Score', color: MUTED, font: { size: 11 } },
+        min: 0, max: 100
+      }
+    }
+  }
+});
+
+// ── CHART 5: EXPLICIT ──
+new Chart(document.getElementById('chart-explicit'), {
+  type: 'bar',
+  data: {
+    labels: ['Clean Tracks', 'Explicit Tracks'],
+    datasets: [{
+      data: [49.86, 57.88],
+      backgroundColor: [GREEN, '#C13584'],
+      borderWidth: 0,
+      borderRadius: 3,
+      barThickness: 80
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts, callbacks: { label: ctx => ` Avg popularity: ${ctx.raw}` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: TEXT, font: { size: 14 } } },
+      y: {
+        grid: gridOpts,
+        ticks: { color: TEXT },
+        min: 44, max: 62,
+        title: { display: true, text: 'Average Popularity Score', color: MUTED, font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── CHART 6: VOLUME ──
+new Chart(document.getElementById('chart-volume'), {
+  type: 'line',
+  data: {
+    labels: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
+    datasets: [{
+      label: 'Tracks Released',
+      data: [157,240,258,315,308,348,383,376,458,522,496,480,443,468,523,648,765],
+      borderColor: GOLD,
+      backgroundColor: 'rgba(245,166,35,0.08)',
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointBackgroundColor: '#0a0a0a',
+      pointBorderColor: GOLD,
+      pointBorderWidth: 2,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts, callbacks: { label: ctx => ` ${ctx.raw} tracks released` } }
+    },
+    scales: {
+      x: { grid: gridOpts, ticks: { color: TEXT } },
+      y: {
+        grid: gridOpts,
+        ticks: { color: TEXT },
+        title: { display: true, text: 'Number of Tracks', color: MUTED, font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── CHART 7: GENRE DURATION ──
+new Chart(document.getElementById('chart-genredur'), {
+  type: 'bar',
+  data: {
+    labels: ['R&B Pop','Alt Pop','Rap','Art Pop','Country','Reggaeton','Soft Pop','R&B','Country Pop','Latin Pop'],
+    datasets: [{
+      data: [4.38, 4.07, 3.99, 3.88, 3.76, 3.61, 3.59, 3.57, 3.49, 3.40],
+      backgroundColor: genreColors,
+      borderWidth: 0,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipOpts, callbacks: { label: ctx => ` ${ctx.raw} min avg` } }
+    },
+    scales: {
+      x: {
+        grid: gridOpts,
+        ticks: { color: TEXT, callback: v => v + ' min' },
+        min: 3.0, max: 4.6,
+        title: { display: true, text: 'Average Duration (minutes)', color: MUTED, font: { size: 11 } }
+      },
+      y: { grid: { display: false }, ticks: { color: TEXT } }
+    }
+  }
+});
+
+// NAV SWITCHING
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
